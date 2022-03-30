@@ -1,0 +1,3 @@
+# vardoc
+
+Variable documentation extractor.
