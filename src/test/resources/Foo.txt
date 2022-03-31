@@ -1,0 +1,4 @@
++PARAM Foo.java 12,26 a some stringhy!
++PARAM Foo.java 12,33 xxx whoa, whoa! what a <b>hack</b>?
++RETURN Foo.java 12,15 moo boo.
++FIELD Foo.java 19,15 value some value.
