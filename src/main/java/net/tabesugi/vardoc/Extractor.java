@@ -24,7 +24,6 @@ public class Extractor {
         FIELD,
     }
 
-    private Path basedir = null;
     private JavaParser parser = new JavaParser();
 
     private static String posToStr(Position pos) {
@@ -39,7 +38,7 @@ public class Extractor {
 
     private Path getRelPath(Path path) {
         if (basedir == null) {
-            return path;
+            return path.getFileName();
         } else {
             return basedir.relativize(path);
         }
@@ -47,12 +46,16 @@ public class Extractor {
 
     private void show1(ValueType type, Path path, SimpleName name, JavadocDescription desc) {
         Range range = name.getRange().get();
-        System.out.println(
-            "+"+type.toString()+
-            " "+getRelPath(path).toString()+
-            " "+posToStr(range.begin)+
-            " "+name.getIdentifier()+
-            " "+formatText(desc.toText()));
+        try {
+            out.write(
+                "+"+type.toString()+
+                " "+getRelPath(path).toString()+
+                " "+posToStr(range.begin)+
+                " "+name.getIdentifier()+
+                " "+formatText(desc.toText()));
+            out.newLine();
+        } catch (IOException e) {
+        }
     }
 
     private void doMethodDecl(Path path, MethodDeclaration decl) {
@@ -86,8 +89,11 @@ public class Extractor {
         show1(ValueType.FIELD, path, name, javadoc.get().getDescription());
     }
 
-    public Extractor(Path basedir) {
-        this.basedir = basedir;
+    public Path basedir = null;
+    public BufferedWriter out = new BufferedWriter(
+        new OutputStreamWriter(System.out));
+
+    public Extractor() {
     }
 
     public void doFile(Path path) throws IOException {
@@ -109,6 +115,7 @@ public class Extractor {
                     doFieldDecl(path, decl);
                 }
             }, null);
+        out.flush();
     }
 
     public static void main(String[] args) throws IOException {
@@ -117,8 +124,8 @@ public class Extractor {
         PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:*.java");
         for (String arg1 : args) {
             Path path = Paths.get(arg1);
-            Extractor extractor = new Extractor(
-                Files.isDirectory(path)? path : path.getParent());
+            Extractor extractor = new Extractor();
+            extractor.basedir = Files.isDirectory(path)? path : null;
             Files.walkFileTree(
                 path,
                 new SimpleFileVisitor<Path>() {
