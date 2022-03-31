@@ -51,7 +51,7 @@ public class Extractor {
             "+"+type.toString()+
             " "+getRelPath(path).toString()+
             " "+posToStr(range.begin)+
-            " "+name.toString()+
+            " "+name.getIdentifier()+
             " "+formatText(desc.toText()));
     }
 
@@ -64,7 +64,7 @@ public class Extractor {
                 if (tag.getName().isPresent()) {
                     String name = tag.getName().get();
                     for (Parameter param : decl.getParameters()) {
-                        if (param.getName().toString().equals(name)) {
+                        if (param.getName().getIdentifier().equals(name)) {
                             show1(ValueType.PARAM, path, param.getName(), tag.getContent());
                         }
                     }
