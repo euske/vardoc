@@ -92,7 +92,11 @@ public class Extractor {
 
     public void doFile(Path path) throws IOException {
         ParseResult<CompilationUnit> result = parser.parse(path);
-        if (!result.isSuccessful()) return;
+        if (!result.isSuccessful()) {
+            System.err.println("Error: "+path);
+            return;
+        }
+        System.err.println("Parsed: "+path);
         CompilationUnit cu = result.getResult().get();
         cu.accept(
             new VoidVisitorAdapter<Void>() {
