@@ -9,6 +9,7 @@ import java.util.*;
 import com.github.javaparser.*;
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.visitor.*;
 import com.github.javaparser.javadoc.*;
 import com.github.javaparser.javadoc.description.*;
@@ -16,7 +17,65 @@ import com.github.javaparser.utils.*;
 
 public class Extractor {
 
+    public enum ValueType {
+        NONE,
+        PARAM,
+        RETURN,
+        FIELD,
+    }
+
     private JavaParser parser = new JavaParser();
+
+    private static String posToStr(Position pos) {
+        // Fix 1-based indices.
+        return ((pos.line - Position.FIRST_LINE)+","+
+                (pos.column - Position.FIRST_COLUMN));
+    }
+
+    private static String formatText(String text) {
+        return text.strip().replaceAll("\\s+", " ");
+    }
+
+    private void show1(ValueType type, Path path, SimpleName name, JavadocDescription desc) {
+        Range range = name.getRange().get();
+        System.out.println(
+            "+"+type.toString()+
+            " "+path.toString()+
+            " "+posToStr(range.begin)+
+            " "+name.toString()+
+            " "+formatText(desc.toText()));
+    }
+
+    private void doMethodDecl(Path path, MethodDeclaration decl) {
+        Optional<Javadoc> javadoc = decl.getJavadoc();
+        if (!javadoc.isPresent()) return;
+        for (JavadocBlockTag tag : javadoc.get().getBlockTags()) {
+            switch (tag.getType()) {
+            case PARAM:
+                if (tag.getName().isPresent()) {
+                    String name = tag.getName().get();
+                    for (Parameter param : decl.getParameters()) {
+                        if (param.getName().toString().equals(name)) {
+                            show1(ValueType.PARAM, path, param.getName(), tag.getContent());
+                        }
+                    }
+                }
+                break;
+            case RETURN:
+                show1(ValueType.RETURN, path, decl.getName(), tag.getContent());
+                break;
+            }
+        }
+    }
+
+    private void doFieldDecl(Path path, FieldDeclaration decl) {
+        Optional<Javadoc> javadoc = decl.getJavadoc();
+        if (!javadoc.isPresent()) return;
+        NodeList<VariableDeclarator> vars = decl.getVariables();
+        if (vars.size() != 1) return;
+        SimpleName name = vars.get(0).getName();
+        show1(ValueType.FIELD, path, name, javadoc.get().getDescription());
+    }
 
     public void doFile(Path path) throws IOException {
         ParseResult<CompilationUnit> result = parser.parse(path);
@@ -26,31 +85,13 @@ public class Extractor {
             new VoidVisitorAdapter<Void>() {
                 @Override
                 public void visit(MethodDeclaration decl, Void arg) {
-                    Optional<Javadoc> javadoc = decl.getJavadoc();
-                    if (!javadoc.isPresent()) return;
-                    Range range = decl.getRange().get();
-                    for (JavadocBlockTag tag : javadoc.get().getBlockTags()) {
-                        show(range, tag);
-                    }
+                    doMethodDecl(path, decl);
                 }
                 @Override
                 public void visit(FieldDeclaration decl, Void arg) {
-                    Optional<Javadoc> javadoc = decl.getJavadoc();
-                    if (!javadoc.isPresent()) return;
-                    Range range = decl.getRange().get();
-                    showField(range, javadoc.get().getDescription());
+                    doFieldDecl(path, decl);
                 }
             }, null);
-    }
-
-    public void show(Range range, JavadocBlockTag tag) {
-        System.out.println(range);
-        System.out.println(tag);
-    }
-
-    public void showField(Range range, JavadocDescription desc) {
-        System.out.println(range);
-        System.out.println(desc);
     }
 
     public static void main(String[] args) throws IOException {
